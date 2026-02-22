@@ -1,11 +1,12 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   template: `
     <div class="app-container">
       <div class="page-head">
@@ -15,8 +16,31 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
 
       <p class="muted">
         Enrollments where the user requested withdrawal but MECT rejected (e.g. state changed in MECT after the button was shown).
-        Use this to identify the edge case and act; if frequent in production, automatic reconciliation may be added.
+        Use <strong>Restore to Approved</strong> to reset the enrollment back to active (APPROVED) status so it remains valid.
       </p>
+
+      <!-- Admin credential form (credentials are never stored, only used for the single request) -->
+      <div class="card credentials-card">
+        <h2>Admin credentials</h2>
+        <p class="muted">Enter admin credentials to authorise state corrections. Credentials are sent only when you click Restore and are not stored.</p>
+        <div class="credentials-row">
+          <label>
+            Username
+            <input type="text" [(ngModel)]="adminUsername" autocomplete="username" class="input-field" placeholder="admin" />
+          </label>
+          <label>
+            Password
+            <input type="password" [(ngModel)]="adminPassword" autocomplete="current-password" class="input-field" placeholder="••••••••" />
+          </label>
+        </div>
+      </div>
+
+      @if (actionError) {
+        <div class="alert alert-error">{{ actionError }}</div>
+      }
+      @if (actionSuccess) {
+        <div class="alert alert-success">{{ actionSuccess }}</div>
+      }
 
       @if (error) {
         <div class="alert alert-error">{{ error }}</div>
@@ -51,7 +75,17 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
                   <td>{{ r.marketParticipantName }}</td>
                   <td>{{ r.message }}</td>
                   <td>{{ r.withdrawRejectedAt | date:'short' }}</td>
-                  <td><a [routerLink]="['/enrollments', r.lmrId]" class="btn btn-secondary">View</a></td>
+                  <td class="action-cell">
+                    <button
+                      class="btn btn-primary btn-sm"
+                      (click)="correctWithdrawal(r.lmrId)"
+                      [disabled]="correcting === r.lmrId || !adminUsername || !adminPassword"
+                      [title]="!adminUsername || !adminPassword ? 'Enter admin credentials above first' : ''"
+                    >
+                      {{ correcting === r.lmrId ? 'Restoring…' : 'Restore to Approved' }}
+                    </button>
+                    <a [routerLink]="['/enrollments', r.lmrId]" class="btn btn-secondary btn-sm">View</a>
+                  </td>
                 </tr>
               }
             </tbody>
@@ -64,6 +98,11 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
     .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
     .page-head h1 { margin: 0; }
     .muted { color: var(--miso-text-muted); margin-bottom: 1rem; font-size: 0.875rem; }
+    .credentials-card { margin-bottom: 1.5rem; }
+    .credentials-card h2 { margin-top: 0; }
+    .credentials-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .credentials-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; font-weight: 500; }
+    .input-field { padding: 0.375rem 0.625rem; border: 1px solid var(--miso-border); border-radius: 4px; font-size: 0.875rem; }
     .table-wrap { overflow-x: auto; }
     .miso-table {
       width: 100%;
@@ -80,16 +119,28 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
     }
     .miso-table th { background: var(--miso-surface); font-weight: 600; font-size: 0.875rem; }
     .miso-table tbody tr:hover { background: var(--miso-surface); }
+    .action-cell { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .btn-sm { font-size: 0.8125rem; padding: 0.25rem 0.75rem; }
   `],
 })
 export class WithdrawRejectionsComponent implements OnInit {
   list: WithdrawRejectionDto[] = [];
   loading = true;
   error: string | null = null;
+  correcting: string | null = null;
+  actionError: string | null = null;
+  actionSuccess: string | null = null;
+  adminUsername = '';
+  adminPassword = '';
 
   constructor(private api: LesApiService) {}
 
   ngOnInit(): void {
+    this.loadList();
+  }
+
+  private loadList(): void {
+    this.loading = true;
     this.api.listWithdrawRejections().subscribe({
       next: (data) => {
         this.list = data;
@@ -98,6 +149,27 @@ export class WithdrawRejectionsComponent implements OnInit {
       error: (err) => {
         this.error = err?.message || 'Failed to load rejections';
         this.loading = false;
+      },
+    });
+  }
+
+  correctWithdrawal(lmrId: string): void {
+    this.correcting = lmrId;
+    this.actionError = null;
+    this.actionSuccess = null;
+    this.api.correctWithdrawal(lmrId, this.adminUsername, this.adminPassword).subscribe({
+      next: () => {
+        this.correcting = null;
+        this.actionSuccess = `Enrollment ${lmrId} has been restored to APPROVED.`;
+        this.adminUsername = '';
+        this.adminPassword = '';
+        this.loadList();
+      },
+      error: (err) => {
+        this.correcting = null;
+        this.adminUsername = '';
+        this.adminPassword = '';
+        this.actionError = err?.error?.message || err?.message || 'Failed to correct enrollment state.';
       },
     });
   }
