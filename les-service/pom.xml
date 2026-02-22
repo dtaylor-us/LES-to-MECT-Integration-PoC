@@ -15,7 +15,7 @@
   <artifactId>les-service</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>les-service</name>
-  <description>Load Enrollment System - MISO Energy PoC</description>
+  <description>Locational Enrollment Service - MISO Energy PoC</description>
 
   <properties>
     <java.version>21</java.version>

@@ -1,0 +1,194 @@
+/* MISO-inspired: clean, professional, utility-sector UX */
+:root {
+  --miso-primary: #003366;
+  --miso-primary-dark: #002244;
+  --miso-accent: #0066a1;
+  --miso-accent-hover: #0077b8;
+  --miso-surface: #f5f7fa;
+  --miso-card: #ffffff;
+  --miso-border: #d1d9e0;
+  --miso-text: #1a2b3c;
+  --miso-text-muted: #5c6b7a;
+  --miso-success: #0d7d4a;
+  --miso-warning: #b45309;
+  --miso-error: #c53030;
+  --miso-status-draft: #5c6b7a;
+  --miso-status-submitted: #0066a1;
+  --miso-status-approved: #0d7d4a;
+  --miso-status-withdrawn: #1a2b3c;
+  --miso-status-rejected: #c53030;
+  --shadow-sm: 0 1px 2px rgba(0, 51, 102, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 51, 102, 0.08);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--miso-text);
+  background-color: var(--miso-surface);
+}
+
+h1, h2, h3 {
+  font-weight: 600;
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+}
+
+h1 { font-size: 1.5rem; }
+h2 { font-size: 1.25rem; }
+h3 { font-size: 1.125rem; }
+
+a {
+  color: var(--miso-accent);
+  text-decoration: none;
+  &:hover { text-decoration: underline; }
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+input, select, textarea {
+  font-family: inherit;
+  font-size: 1rem;
+}
+
+.app-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  border: none;
+  border-radius: 6px;
+  transition: background-color 0.15s, color 0.15s;
+
+  &.btn-primary {
+    background-color: var(--miso-accent);
+    color: #fff;
+    &:hover:not(:disabled) {
+      background-color: var(--miso-accent-hover);
+    }
+  }
+
+  &.btn-secondary {
+    background-color: var(--miso-card);
+    color: var(--miso-text);
+    border: 1px solid var(--miso-border);
+    &:hover:not(:disabled) {
+      background-color: var(--miso-surface);
+    }
+  }
+
+  &.btn-danger {
+    background-color: var(--miso-error);
+    color: #fff;
+    &:hover:not(:disabled) {
+      filter: brightness(1.1);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.form-group {
+  margin-bottom: 1rem;
+  label {
+    display: block;
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+    color: var(--miso-text);
+  }
+  input, select {
+    width: 100%;
+    max-width: 24rem;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--miso-border);
+    border-radius: 6px;
+    background: var(--miso-card);
+    &:focus {
+      outline: none;
+      border-color: var(--miso-accent);
+      box-shadow: 0 0 0 3px rgba(0, 102, 161, 0.15);
+    }
+  }
+}
+
+.card {
+  background: var(--miso-card);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--miso-border);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+
+  &.status-DRAFT { background: #e8ecf0; color: var(--miso-status-draft); }
+  &.status-SUBMITTED { background: #e0f0f8; color: var(--miso-status-submitted); }
+  &.status-APPROVED { background: #e0f4ec; color: var(--miso-status-approved); }
+  &.status-WITHDRAWN_REQUESTED { background: #fef3e0; color: var(--miso-warning); }
+  &.status-WITHDRAWN { background: #e8ecf0; color: var(--miso-status-withdrawn); }
+  &.status-WITHDRAW_REJECTED { background: #fce8e8; color: var(--miso-status-rejected); }
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+
+  &.alert-info {
+    background: #e0f0f8;
+    color: var(--miso-primary);
+    border: 1px solid rgba(0, 102, 161, 0.3);
+  }
+  &.alert-success {
+    background: #e0f4ec;
+    color: var(--miso-success);
+    border: 1px solid rgba(13, 125, 74, 0.3);
+  }
+  &.alert-warning {
+    background: #fef3e0;
+    color: var(--miso-warning);
+    border: 1px solid rgba(180, 83, 9, 0.3);
+  }
+  &.alert-error {
+    background: #fce8e8;
+    color: var(--miso-error);
+    border: 1px solid rgba(197, 48, 48, 0.3);
+  }
+}

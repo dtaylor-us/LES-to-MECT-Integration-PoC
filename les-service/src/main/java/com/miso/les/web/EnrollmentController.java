@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,6 +24,12 @@ public class EnrollmentController {
 
     public EnrollmentController(EnrollmentService enrollmentService) {
         this.enrollmentService = enrollmentService;
+    }
+
+    @GetMapping
+    @Operation(summary = "List all enrollments (newest first)")
+    public ResponseEntity<List<LMREnrollment>> list() {
+        return ResponseEntity.ok(enrollmentService.listAll());
     }
 
     @PostMapping
@@ -57,24 +64,33 @@ public class EnrollmentController {
     @Operation(
             summary = "Get withdrawal eligibility for UI",
             description = "From MECT via Kafka. Use canWithdraw to decide whether to show the Withdraw button. "
-                    + "When canWithdraw is false, display 'message' to the user (from MECT; LES does not map codes)."
+                    + "When canWithdraw is false, display 'message' to the user (from MECT; LES does not map codes). "
+                    + "Returns 200 with a default (canWithdraw=false) when enrollment exists but MECT has not yet sent eligibility."
     )
     public ResponseEntity<?> getWithdrawEligibility(@PathVariable("id") String lmrId) {
         Optional<LMRWithdrawEligibility> el = enrollmentService.getEligibility(lmrId);
-        if (el.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(Map.of("message", "LMR not found or eligibility not yet available"));
+        if (el.isPresent()) {
+            LMRWithdrawEligibility e = el.get();
+            String message = e.getReason() != null ? e.getReason() : "";
+            return ResponseEntity.ok(Map.of(
+                    "lmrId", e.getLmrId(),
+                    "planningYear", e.getPlanningYear(),
+                    "canWithdraw", e.isCanWithdraw(),
+                    "message", message,
+                    "updatedAt", e.getUpdatedAt()
+            ));
         }
-        LMRWithdrawEligibility e = el.get();
-        // message: user-facing text from MECT; show when canWithdraw is false (e.g. why button is hidden)
-        String message = e.getReason() != null ? e.getReason() : "";
-        return ResponseEntity.ok(Map.of(
-                "lmrId", e.getLmrId(),
-                "planningYear", e.getPlanningYear(),
-                "canWithdraw", e.isCanWithdraw(),
-                "message", message,
-                "updatedAt", e.getUpdatedAt()
-        ));
+        // Eligibility not in LES yet; if enrollment exists, return 200 with default so UI does not 404
+        return enrollmentService.getByLmrId(lmrId)
+                .map(en -> ResponseEntity.ok(Map.<String, Object>of(
+                        "lmrId", en.getLmrId(),
+                        "planningYear", en.getPlanningYear(),
+                        "canWithdraw", false,
+                        "message", "Eligibility not yet available from MECT.",
+                        "updatedAt", en.getUpdatedAt()
+                )))
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of("message", "LMR not found")));
     }
 
     @GetMapping("/{id}")

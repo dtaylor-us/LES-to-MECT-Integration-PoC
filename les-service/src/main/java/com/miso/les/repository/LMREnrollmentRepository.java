@@ -15,4 +15,6 @@ public interface LMREnrollmentRepository extends JpaRepository<LMREnrollment, Lo
 
     /** For admin view: enrollments where user requested withdraw but MECT rejected (edge case). */
     List<LMREnrollment> findByStatusOrderByWithdrawRejectedAtDesc(EnrollmentStatus status);
+
+    List<LMREnrollment> findAllByOrderByUpdatedAtDesc();
 }

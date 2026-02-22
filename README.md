@@ -1,6 +1,6 @@
 # MISO Energy LES / MECT PoC
 
-Proof of Concept integration between **LES** (Load Enrollment System) and **MECT** (Module E Capacity Tracking) using **Kafka** for eventing and distributed state synchronization. This PoC shows how LMR enrollment approval and withdrawal are coordinated without synchronous back-and-forth calls, with minimal race conditions and MECT as the authoritative system.
+Proof of Concept integration between **LES** (Locational Enrollment Service) and **MECT** (Module E Capacity Tracking) using **Kafka** for eventing and distributed state synchronization. This PoC shows how LMR enrollment approval and withdrawal are coordinated without synchronous back-and-forth calls, with minimal race conditions and MECT as the authoritative system.
 
 ---
 
@@ -83,9 +83,46 @@ Proof of Concept integration between **LES** (Load Enrollment System) and **MECT
 
 **Admin visibility**: `GET /api/admin/withdraw-rejections` returns all enrollments in status `WITHDRAW_REJECTED` (lmrId, planningYear, message from MECT, `withdrawRejectedAt`). Admins can use this to identify when the edge case occurred and decide next steps. If many such rejections appear in production, teams may add features to reconcile or refresh eligibility more aggressively.
 
+### User workflow (LES UI)
+
+The **LES UI** (Angular app at `les-ui/`) drives the full lifecycle from the browser:
+
+1. **Create** – User creates a new enrollment (LMR ID, name, participant, resource type, planning year). Status: **DRAFT**.
+2. **Submit** – User clicks “Submit for approval”. Status: **SUBMITTED**.
+3. **Approve** – Admin clicks “Approve enrollment”. LES sets status **APPROVED** and publishes `lmr.approved.v1`; MECT creates the LMR and later publishes eligibility.
+4. **Withdraw (when eligible)** – Once MECT has sent eligibility with `canWithdraw=true`, the UI shows a “Withdraw” button. User clicks it; LES sets **WITHDRAWN_REQUESTED** and publishes `lmr.withdraw.requested.v1`. MECT processes and publishes either completed or rejected; LES consumes and shows **WITHDRAWN** or **WITHDRAW_REJECTED** with the reason.
+
+The UI avoids race conditions and keeps the right action visible by:
+
+- **Single source of truth after actions** – After Submit / Approve / Withdraw, the UI updates from the **API response** only (no immediate refetch that could return stale status). That way the correct status and next action appear without a refresh.
+- **Eligibility from LES cache** – The Withdraw button and “cannot withdraw” message use `GET /api/lmrs/{id}/withdraw-eligibility` (LES read-model from Kafka). There is no synchronous call to MECT on each click; the backend returns 200 with a default when eligibility is not yet available, so the UI never 404s.
+- **Polling for live state** – When status is **APPROVED** or **WITHDRAWN_REQUESTED**, the detail screen polls every 2 seconds for enrollment and eligibility. So when MECT publishes eligibility (or completed/rejected), the Withdraw button and messages update automatically. Polling stops when status becomes a terminal state (e.g. WITHDRAWN, WITHDRAW_REJECTED).
+- **No double submit** – Buttons are disabled while `actionLoading` is true, so the user cannot trigger the same action twice before the first response returns.
+
+See **`les-ui/README.md`** for a detailed description of the workflow, how the UI prevents race conditions, and how it decides which action to display.
+
 ---
 
 ## Quick Start
+
+### Option A: Start everything with Docker Compose (easiest)
+
+From the **repo root**:
+
+```bash
+docker compose up -d
+```
+
+This starts: Zookeeper, Kafka, Postgres (LES + MECT), LES service, MECT service, LES UI, and Kafka UI. Wait a minute or two for services to be healthy, then:
+
+- **LES UI**: http://localhost:4200 (use this to manage enrollments)
+- **LES API**: http://localhost:8081
+- **MECT API**: http://localhost:8082
+- **Kafka UI**: http://localhost:8080
+
+Create Kafka topics (see step 2 below) before using the full workflow.
+
+### Option B: Start infrastructure only, run apps locally
 
 ### 1. Start infrastructure
 
@@ -127,6 +164,14 @@ cd mect-service && mvn spring-boot:run
 
 - **LES**: http://localhost:8081 (Swagger: http://localhost:8081/swagger-ui.html)
 - **MECT**: http://localhost:8082 (Swagger: http://localhost:8082/swagger-ui.html)
+
+### 4. (Optional) Run LES UI (when not using Option A)
+
+```bash
+cd les-ui && npm install && npm start
+```
+
+- **LES UI**: http://localhost:4200 — MISO-style Angular app to manage enrollments and simulate the workflow. See `les-ui/README.md` for details.
 
 ---
 
@@ -215,11 +260,16 @@ This shows that **MECT is the final authority** and reconciliation via events ke
 ```
 les-mect-poc/
 ├── README.md
+├── docker-compose.yml       # One command: infra + LES + MECT + LES UI
 ├── infra/
 │   ├── docker-compose.yml    # Kafka, Zookeeper, lesdb, mectdb, Kafka UI
 │   └── init-kafka-topics.sh   # Optional: topic creation (run inside Kafka container)
 ├── les-service/               # Spring Boot 3.x, Java 21
 │   ├── pom.xml
+│   └── src/...
+├── les-ui/                    # Angular 19 – LES workflow UI (MISO-style)
+│   ├── README.md
+│   ├── package.json
 │   └── src/...
 └── mect-service/              # Spring Boot 3.x, Java 21
     ├── pom.xml

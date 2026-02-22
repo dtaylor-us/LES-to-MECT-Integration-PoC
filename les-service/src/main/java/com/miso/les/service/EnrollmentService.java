@@ -22,7 +22,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Service
 public class EnrollmentService {
@@ -125,14 +124,6 @@ public class EnrollmentService {
         e.setStatus(EnrollmentStatus.WITHDRAWN_REQUESTED);
         enrollmentRepository.save(e);
 
-        // PoC: sleep so you can change state in MECT (e.g. add blocking flag) to test edge-case rejection
-        try {
-            Thread.sleep(SECONDS.toMillis(15));
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Withdraw interrupted");
-        }
-
         LmrWithdrawRequestedEvent evt = new LmrWithdrawRequestedEvent();
         evt.setEventId(UUID.randomUUID().toString());
         evt.setEventType("lmr.withdraw.requested.v1");
@@ -194,6 +185,10 @@ public class EnrollmentService {
 
     public Optional<LMREnrollment> getByLmrId(String lmrId) {
         return enrollmentRepository.findByLmrId(lmrId);
+    }
+
+    public List<LMREnrollment> listAll() {
+        return enrollmentRepository.findAllByOrderByUpdatedAtDesc();
     }
 
     /** For admins: enrollments where withdrawal was rejected by MECT (edge case—state changed after button was shown). */
