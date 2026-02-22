@@ -23,3 +23,7 @@ Thumbs.db
 # Spring Boot
 application-local.yml
 application-local.properties
+
+# Node / Angular
+node_modules/
+dist/

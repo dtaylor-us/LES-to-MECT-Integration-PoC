@@ -81,6 +81,10 @@ import { LesApiService, LMREnrollment, WithdrawEligibility } from '../services/l
               <div class="alert alert-error">
                 <strong>Withdrawal rejected by MECT:</strong> {{ enrollment.withdrawRejectReason || 'See message above.' }}
               </div>
+              <button class="btn btn-primary" (click)="correctWithdrawal()" [disabled]="actionLoading">
+                Restore to Approved (admin)
+              </button>
+              <span class="action-note">Resets this enrollment to APPROVED so it remains active. Requires admin credentials.</span>
             }
           </div>
         </div>
@@ -245,6 +249,10 @@ export class EnrollmentDetailComponent implements OnInit, OnDestroy {
 
   withdraw(): void {
     this.runAction(() => this.api.withdraw(this.lmrId));
+  }
+
+  correctWithdrawal(): void {
+    this.runAction(() => this.api.correctWithdrawal(this.lmrId));
   }
 
   private runAction(op: () => Observable<LMREnrollment>): void {
