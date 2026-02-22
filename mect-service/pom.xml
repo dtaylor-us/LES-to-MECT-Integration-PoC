@@ -11,7 +11,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.miso.mect</groupId>
+  <groupId>org.misoenergy.mect</groupId>
   <artifactId>mect-service</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>mect-service</name>

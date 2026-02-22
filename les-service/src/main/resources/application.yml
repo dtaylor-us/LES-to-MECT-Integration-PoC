@@ -60,5 +60,5 @@ springdoc:
 
 logging:
   level:
-    com.miso.les: INFO
+    org.misoenergy.les: INFO
     org.springframework.kafka: INFO

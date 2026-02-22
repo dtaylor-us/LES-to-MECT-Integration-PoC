@@ -11,7 +11,7 @@
     <relativePath/>
   </parent>
 
-  <groupId>com.miso.les</groupId>
+  <groupId>org.misoenergy.les</groupId>
   <artifactId>les-service</artifactId>
   <version>0.0.1-SNAPSHOT</version>
   <name>les-service</name>
