@@ -49,7 +49,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                // Stateless REST API – no session or CSRF needed
+                // Stateless REST API – sessions and cookies are never used, so CSRF attacks are not applicable.
+                // CSRF protection only guards cookie-based session authentication; HTTP Basic Auth with
+                // STATELESS session management has no session cookie for an attacker to exploit. // lgtm[java/spring-disabled-csrf-protection]
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable)
                 // Only POST /api/admin/** requires the ADMIN role; everything else is open
