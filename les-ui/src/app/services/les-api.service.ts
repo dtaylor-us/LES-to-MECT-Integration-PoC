@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 
@@ -79,5 +79,19 @@ export class LesApiService {
 
   listWithdrawRejections(): Observable<WithdrawRejectionDto[]> {
     return this.http.get<WithdrawRejectionDto[]>(`${this.base}/admin/withdraw-rejections`);
+  }
+
+  /**
+   * Admin-only: restore a WITHDRAW_REJECTED enrollment to APPROVED.
+   * Sends HTTP Basic Auth credentials configured in the environment.
+   */
+  correctWithdrawal(lmrId: string): Observable<LMREnrollment> {
+    const token = btoa(`${environment.adminUsername}:${environment.adminPassword}`);
+    const headers = new HttpHeaders({ Authorization: `Basic ${token}` });
+    return this.http.post<LMREnrollment>(
+      `${this.base}/admin/lmrs/${encodeURIComponent(lmrId)}/correct-withdrawal`,
+      {},
+      { headers, withCredentials: true },
+    );
   }
 }

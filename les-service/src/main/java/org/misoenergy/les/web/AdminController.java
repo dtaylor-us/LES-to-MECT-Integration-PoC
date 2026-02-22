@@ -5,22 +5,20 @@ import org.misoenergy.les.service.EnrollmentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Admin endpoints to see edge cases (e.g. withdrawal rejected by MECT after LES allowed the request).
- * Standard workflow gives immediate feedback via eligibility; these views help admins act when
- * the rare "button was shown, then state changed in MECT" case occurs.
+ * Admin endpoints to see edge cases (e.g. withdrawal rejected by MECT after LES allowed the request)
+ * and to correct enrollment state where necessary.
+ * Write endpoints (POST) require the ADMIN role (HTTP Basic Auth); read endpoints are open.
  */
 @RestController
 @RequestMapping("/api/admin")
-@Tag(name = "Admin", description = "Admin visibility into withdrawal rejections and edge cases")
+@Tag(name = "Admin", description = "Admin visibility into withdrawal rejections and state correction")
 public class AdminController {
 
     private final EnrollmentService enrollmentService;
@@ -50,6 +48,19 @@ public class AdminController {
                 ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(body);
+    }
+
+    @PostMapping("/lmrs/{id}/correct-withdrawal")
+    @Operation(
+            summary = "Correct enrollment state after a rejected withdrawal (admin only)",
+            description = "Resets a WITHDRAW_REJECTED enrollment back to APPROVED so it remains active. "
+                    + "Clears the rejection reason and timestamp. "
+                    + "Only applies to enrollments currently in WITHDRAW_REJECTED status. "
+                    + "Requires ADMIN role (HTTP Basic Auth)."
+    )
+    public ResponseEntity<LMREnrollment> correctWithdrawal(@PathVariable("id") String lmrId) {
+        LMREnrollment updated = enrollmentService.correctRejectedWithdrawal(lmrId);
+        return ResponseEntity.ok(updated);
     }
 
     /** DTO for admin list: no need to expose full entity. */

@@ -195,4 +195,25 @@ public class EnrollmentService {
     public List<LMREnrollment> listWithdrawRejected() {
         return enrollmentRepository.findByStatusOrderByWithdrawRejectedAtDesc(EnrollmentStatus.WITHDRAW_REJECTED);
     }
+
+    /**
+     * Admin correction: reset a WITHDRAW_REJECTED enrollment back to APPROVED so it remains active.
+     * Clears rejection fields to avoid stale data being shown to users.
+     * Only valid when the enrollment is in WITHDRAW_REJECTED state; any other state is rejected with 409.
+     */
+    @Transactional
+    public LMREnrollment correctRejectedWithdrawal(String lmrId) {
+        LMREnrollment e = enrollmentRepository.findByLmrId(lmrId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "LMR not found: " + lmrId));
+        if (e.getStatus() != EnrollmentStatus.WITHDRAW_REJECTED) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Only WITHDRAW_REJECTED enrollments can be corrected; current: " + e.getStatus());
+        }
+        e.setStatus(EnrollmentStatus.APPROVED);
+        e.setWithdrawRejectReason(null);
+        e.setWithdrawRejectedAt(null);
+        enrollmentRepository.save(e);
+        log.info("Admin corrected withdrawal rejection lmrId={}", lmrId);
+        return e;
+    }
 }
