@@ -13,7 +13,7 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         <nav class="miso-nav">
           <a routerLink="/enrollments" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Enrollments</a>
           <a routerLink="/enrollments/new">New enrollment</a>
-          <a routerLink="/admin/withdraw-rejections">Admin – Rejections</a>
+          <a routerLink="/admin/withdraw-rejections">Withdrawal rejections</a>
         </nav>
       </div>
     </header>

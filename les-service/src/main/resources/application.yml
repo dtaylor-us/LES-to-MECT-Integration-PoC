@@ -35,6 +35,10 @@ server:
 
 # Topic names (must match MECT and infra)
 les:
+  admin:
+    username: ${LES_ADMIN_USERNAME:admin}
+    # Set LES_ADMIN_PASSWORD env var in any non-local environment; the default is for local development only
+    password: ${LES_ADMIN_PASSWORD:changeme}
   kafka:
     topics:
       approved: lmr.approved.v1

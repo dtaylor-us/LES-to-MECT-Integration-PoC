@@ -64,11 +64,14 @@ Shows who does what and where events go. Use this to derive a sequence diagram.
 
 ```mermaid
 flowchart TB
-    subgraph User ["👤 User / Admin"]
+    subgraph MP ["👤 Market Participant"]
         A1[Create enrollment]
         A2[Submit for approval]
-        A3[Approve enrollment]
         A4[Click Withdraw]
+    end
+
+    subgraph Admin ["👤 Admin"]
+        A3[Approve enrollment]
     end
 
     subgraph LES_UI ["LES UI (Angular)"]
@@ -172,13 +175,13 @@ flowchart LR
 
 ## 5. Step-by-step flows for sequence diagrams
 
-### 5a. Approval flow (create → approve → eligibility available)
+### 5a. Approval flow (market participant creates and submits, admin approves → eligibility available)
 
 | Step | Actor | Action | Notes for sequence diagram |
 |------|--------|--------|-----------------------------|
-| 1 | User | Create enrollment (form) | LES UI → LES API: POST /api/lmrs |
+| 1 | Market Participant | Create enrollment (form) | LES UI → LES API: POST /api/lmrs |
 | 2 | LES API | Persist enrollment, status = DRAFT | Response 201 |
-| 3 | User | Submit for approval | LES UI → LES API: POST .../submit |
+| 3 | Market Participant | Submit for approval | LES UI → LES API: POST .../submit |
 | 4 | LES API | Set status = SUBMITTED | Response 200 |
 | 5 | Admin | Approve enrollment | LES UI → LES API: POST .../approve |
 | 6 | LES API | Set status = APPROVED, write outbox | Response 200 (enrollment) |
@@ -192,7 +195,7 @@ flowchart LR
 
 | Step | Actor | Action | Notes for sequence diagram |
 |------|--------|--------|-----------------------------|
-| 1 | User | Click Withdraw | LES UI → LES API: POST .../withdraw |
+| 1 | Market Participant | Click Withdraw | LES UI → LES API: POST .../withdraw |
 | 2 | LES API | Check local eligibility; if canWithdraw, set WITHDRAWN_REQUESTED, write outbox | Response 200 (enrollment) |
 | 3 | LES (outbox job) | Publish lmr.withdraw.requested.v1 to Kafka | Async |
 | 4 | MECT | Consume lmr.withdraw.requested.v1 | Check blocking flags |
@@ -205,7 +208,7 @@ flowchart LR
 
 | Step | Actor | Action | Notes for sequence diagram |
 |------|--------|--------|-----------------------------|
-| 1–3 | (same as 5b) | User withdraws, LES sets WITHDRAWN_REQUESTED, publishes lmr.withdraw.requested.v1 | |
+| 1–3 | (same as 5b) | Market Participant withdraws, LES sets WITHDRAWN_REQUESTED, publishes lmr.withdraw.requested.v1 | |
 | 4 | MECT | Consume lmr.withdraw.requested.v1 | Check blocking flags |
 | 5 | MECT | Flags present → publish lmr.withdraw.rejected.v1 + eligibility (canWithdraw=false, reason) | |
 | 6 | LES | Consume lmr.withdraw.rejected.v1 | Set status = WITHDRAW_REJECTED, store reason |
@@ -216,7 +219,7 @@ flowchart LR
 
 | Step | Actor | Action | Notes for sequence diagram |
 |------|--------|--------|-----------------------------|
-| 1 | User | Attempt withdraw (or API call) | LES UI → LES API: POST .../withdraw |
+| 1 | Market Participant | Attempt withdraw (or API call) | LES UI → LES API: POST .../withdraw |
 | 2 | LES API | Check local eligibility; canWithdraw=false | Response **409** with reason (no event published) |
 | 3 | LES UI | Show error / no button | Withdraw button not shown when eligibility says no |
 
@@ -233,18 +236,25 @@ flowchart LR
 
 ## 6. Simplified sequence-style flow (one diagram)
 
-High-level order of operations; replace arrows with proper sequence diagram participants (User, LES UI, LES API, Kafka, MECT).
+High-level order of operations: market participant creates and submits; admin approves; market participant may withdraw when eligible.
 
 ```mermaid
 sequenceDiagram
-    participant User
+    participant MP as "Market Participant"
+    participant Admin
     participant LES_UI
     participant LES_API
     participant Kafka
     participant MECT
 
-    User->>LES_UI: Create / Submit / Approve
-    LES_UI->>LES_API: HTTP (create, submit, approve)
+    MP->>LES_UI: Create enrollment
+    LES_UI->>LES_API: POST /api/lmrs
+    LES_API-->>LES_UI: 201 DRAFT
+    MP->>LES_UI: Submit for approval
+    LES_UI->>LES_API: POST .../submit
+    LES_API-->>LES_UI: 200 SUBMITTED
+    Admin->>LES_UI: Approve enrollment
+    LES_UI->>LES_API: POST .../approve
     LES_API->>LES_API: Update status, write outbox
     LES_API->>Kafka: lmr.approved.v1 (on approve)
     Kafka->>MECT: Consume approved
@@ -255,7 +265,7 @@ sequenceDiagram
     LES_UI->>LES_API: GET withdraw-eligibility (poll)
     LES_API->>LES_UI: canWithdraw, message
 
-    User->>LES_UI: Withdraw (if button shown)
+    MP->>LES_UI: Withdraw (if button shown)
     LES_UI->>LES_API: POST withdraw
     LES_API->>LES_API: Check eligibility, set WITHDRAWN_REQUESTED, outbox
     LES_API->>Kafka: lmr.withdraw.requested.v1
@@ -296,6 +306,256 @@ flowchart TD
     POLL[Poll every 2s when APPROVED or WITHDRAWN_REQUESTED]
     POLL --> REFRESH[Refresh enrollment + eligibility]
     REFRESH --> STATUS
+```
+
+---
+
+## 8. Sequence diagrams by scenario
+
+One sequence diagram per scenario for reuse in docs or slides.
+
+### 8a. Approval flow (market participant creates and submits, admin approves, MECT creates LMR)
+
+```mermaid
+sequenceDiagram
+    participant MP as "Market Participant"
+    participant Admin
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+
+    MP->>LES_UI: Create enrollment (form)
+    LES_UI->>LES_API: POST /api/lmrs
+    LES_API->>LES_API: Persist DRAFT
+    LES_API-->>LES_UI: 201 enrollment
+
+    MP->>LES_UI: Submit for approval
+    LES_UI->>LES_API: POST .../submit
+    LES_API->>LES_API: Set SUBMITTED
+    LES_API-->>LES_UI: 200 enrollment
+
+    Admin->>LES_UI: Approve enrollment
+    LES_UI->>LES_API: POST .../approve
+    LES_API->>LES_API: Set APPROVED, write outbox
+    LES_API-->>LES_UI: 200 enrollment
+    LES_API->>Kafka: lmr.approved.v1
+    Kafka->>MECT: Consume
+    MECT->>MECT: Create LMR, compute capacity
+    MECT->>Kafka: lmr.withdraw.eligibility.v1
+    Kafka->>LES_API: Consume
+    LES_API->>LES_API: Update eligibility read-model
+
+    Note over LES_UI: Poll GET withdraw-eligibility
+    LES_UI->>LES_API: GET .../withdraw-eligibility
+    LES_API-->>LES_UI: canWithdraw, message
+```
+
+### 8b. Withdraw — happy path (eligible, MECT accepts)
+
+```mermaid
+sequenceDiagram
+    participant Market Participant
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+
+    Market Participant->>LES_UI: Click Withdraw
+    LES_UI->>LES_API: POST .../withdraw
+    LES_API->>LES_API: Check eligibility (canWithdraw=true)
+    LES_API->>LES_API: Set WITHDRAWN_REQUESTED, write outbox
+    LES_API-->>LES_UI: 200 enrollment
+    LES_API->>Kafka: lmr.withdraw.requested.v1
+    Kafka->>MECT: Consume
+    MECT->>MECT: Check blocking flags (none)
+    MECT->>Kafka: lmr.withdraw.completed.v1
+    MECT->>Kafka: lmr.withdraw.eligibility.v1 (canWithdraw=false)
+    Kafka->>LES_API: Consume completed
+    LES_API->>LES_API: Set status WITHDRAWN
+    Kafka->>LES_API: Consume eligibility
+    LES_API->>LES_API: Update read-model
+    LES_UI->>LES_API: GET .../lmrs/{id} (poll)
+    LES_API-->>LES_UI: status WITHDRAWN
+    LES_UI->>LES_UI: Stop polling, show success
+```
+
+### 8c. Withdraw — rejected by MECT (blocking flags)
+
+```mermaid
+sequenceDiagram
+    participant MP as "Market Participant"
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+
+    MP->>LES_UI: Click Withdraw
+    LES_UI->>LES_API: POST .../withdraw
+    LES_API->>LES_API: Check eligibility (canWithdraw=true)
+    LES_API->>LES_API: Set WITHDRAWN_REQUESTED, write outbox
+    LES_API-->>LES_UI: 200 enrollment
+    LES_API->>Kafka: lmr.withdraw.requested.v1
+    Kafka->>MECT: Consume
+    MECT->>MECT: Check blocking flags (present)
+    MECT->>Kafka: lmr.withdraw.rejected.v1 (reason)
+    MECT->>Kafka: lmr.withdraw.eligibility.v1 (canWithdraw=false)
+    Kafka->>LES_API: Consume rejected
+    LES_API->>LES_API: Set WITHDRAW_REJECTED, store reason
+    Kafka->>LES_API: Consume eligibility
+    LES_API->>LES_API: Update read-model
+    LES_UI->>LES_API: GET .../lmrs/{id} (poll)
+    LES_API-->>LES_UI: status WITHDRAW_REJECTED, reason
+    LES_UI->>LES_UI: Show rejection message
+```
+
+### 8d. Withdraw — blocked at LES (409, no event)
+
+```mermaid
+sequenceDiagram
+    participant MP as "Market Participant"
+    participant LES_UI
+    participant LES_API
+
+    MP->>LES_UI: Click Withdraw (or call API)
+    LES_UI->>LES_API: POST .../withdraw
+    LES_API->>LES_API: Check eligibility (canWithdraw=false)
+    LES_API-->>LES_UI: 409 Conflict (reason from MECT)
+    Note over LES_UI,LES_API: No Kafka event published
+    LES_UI->>LES_UI: Show error and hide Withdraw button
+```
+
+### 8e. Eligibility not yet available (UI polls after admin approves)
+
+```mermaid
+sequenceDiagram
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+
+    Note over LES_UI,MECT: Enrollment just approved, MECT has not yet published eligibility
+    LES_UI->>LES_API: GET .../withdraw-eligibility
+    LES_API->>LES_API: Look up eligibility (empty)
+    LES_API->>LES_API: Enrollment exists, return 200 default
+    LES_API-->>LES_UI: 200 canWithdraw=false, default message
+    LES_UI->>LES_UI: Show message, no Withdraw button
+    MECT->>Kafka: lmr.withdraw.eligibility.v1 (after creating LMR)
+    Kafka->>LES_API: Consume
+    LES_API->>LES_API: Update read-model
+    LES_UI->>LES_API: GET .../withdraw-eligibility (poll)
+    LES_API-->>LES_UI: 200 canWithdraw=true
+    LES_UI->>LES_UI: Show Withdraw button
+```
+
+### 8f. Admin toggles blocking flag (MECT API → eligibility update)
+
+```mermaid
+sequenceDiagram
+    participant Admin
+    participant MECT_API
+    participant MECT
+    participant Kafka
+    participant LES_API
+    participant LES_UI
+
+    Admin->>MECT_API: POST .../flags/ZRC_TRANSACTION_EXISTS/enable
+    MECT_API->>MECT: Enable flag for LMR
+    MECT->>MECT: Recompute eligibility (canWithdraw=false)
+    MECT->>Kafka: lmr.withdraw.eligibility.v1
+    Kafka->>LES_API: Consume
+    LES_API->>LES_API: Update eligibility read-model
+    LES_UI->>LES_API: GET .../withdraw-eligibility (poll)
+    LES_API-->>LES_UI: canWithdraw=false, message
+    LES_UI->>LES_UI: Hide Withdraw button, show MECT message
+
+    Note over Admin: Later: disable flag
+    Admin->>MECT_API: POST .../flags/.../disable
+    MECT_API->>MECT: Disable flag
+    MECT->>MECT: Recompute eligibility (canWithdraw=true)
+    MECT->>Kafka: lmr.withdraw.eligibility.v1
+    Kafka->>LES_API: Consume
+    LES_API->>LES_API: Update read-model
+    LES_UI->>LES_API: GET .../withdraw-eligibility (poll)
+    LES_API-->>LES_UI: canWithdraw=true
+    LES_UI->>LES_UI: Show Withdraw button
+```
+
+### 8g. Edge case: race (button shown, then admin adds flag in MECT, market participant withdraws → rejected)
+
+```mermaid
+sequenceDiagram
+    participant MP as "Market Participant"
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+    participant Admin
+
+    Note over LES_UI,MECT: Initial: eligibility canWithdraw=true, Withdraw button shown
+    Admin->>MECT: Enable blocking flag (e.g. via MECT API)
+    MECT->>Kafka: lmr.withdraw.eligibility.v1 (canWithdraw=false)
+    Note over MP: Market participant still sees old state (has not refreshed)
+    MP->>LES_UI: Click Withdraw
+    LES_UI->>LES_API: POST .../withdraw
+    LES_API->>LES_API: Check eligibility (may still be true if event not consumed)
+    LES_API->>LES_API: Set WITHDRAWN_REQUESTED, write outbox
+    LES_API->>Kafka: lmr.withdraw.requested.v1
+    Kafka->>MECT: Consume
+    MECT->>MECT: Check blocking flags (now present)
+    MECT->>Kafka: lmr.withdraw.rejected.v1
+    MECT->>Kafka: lmr.withdraw.eligibility.v1
+    Kafka->>LES_API: Consume rejected
+    LES_API->>LES_API: Set WITHDRAW_REJECTED, store reason
+    LES_UI->>LES_API: GET .../lmrs/{id} (poll)
+    LES_API-->>LES_UI: status WITHDRAW_REJECTED
+    LES_UI->>LES_UI: Show rejection, admin can list via admin API
+```
+
+### 8h. Full lifecycle (single diagram: create → approve → withdraw completed)
+
+```mermaid
+sequenceDiagram
+    participant MP as "Market Participant"
+    participant Admin
+    participant LES_UI
+    participant LES_API
+    participant Kafka
+    participant MECT
+
+    rect rgb(240, 248, 255)
+        Note over MP,MECT: Market participant: create and submit
+        MP->>LES_UI: Create enrollment
+        LES_UI->>LES_API: POST /api/lmrs
+        LES_API-->>LES_UI: 201 DRAFT
+        MP->>LES_UI: Submit
+        LES_UI->>LES_API: POST .../submit
+        LES_API-->>LES_UI: 200 SUBMITTED
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Admin,MECT: Admin approves, MECT creates LMR
+        Admin->>LES_UI: Approve
+        LES_UI->>LES_API: POST .../approve
+        LES_API->>Kafka: lmr.approved.v1
+        LES_API-->>LES_UI: 200 APPROVED
+        Kafka->>MECT: Consume approved
+        MECT->>Kafka: lmr.withdraw.eligibility.v1
+        Kafka->>LES_API: Consume eligibility
+    end
+
+    rect rgb(255, 248, 240)
+        Note over MP,MECT: Market participant: withdraw (happy path)
+        MP->>LES_UI: Withdraw
+        LES_UI->>LES_API: POST .../withdraw
+        LES_API->>Kafka: lmr.withdraw.requested.v1
+        LES_API-->>LES_UI: 200 WITHDRAWN_REQUESTED
+        Kafka->>MECT: Consume
+        MECT->>Kafka: lmr.withdraw.completed.v1 + eligibility
+        Kafka->>LES_API: Consume completed
+        LES_UI->>LES_API: GET .../lmrs/{id} (poll)
+        LES_API-->>LES_UI: 200 WITHDRAWN
+    end
 ```
 
 ---

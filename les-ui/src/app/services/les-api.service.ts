@@ -80,4 +80,14 @@ export class LesApiService {
   listWithdrawRejections(): Observable<WithdrawRejectionDto[]> {
     return this.http.get<WithdrawRejectionDto[]>(`${this.base}/admin/withdraw-rejections`);
   }
+
+  /**
+   * Restore a WITHDRAW_REJECTED enrollment to APPROVED (prototype: no auth required).
+   */
+  correctWithdrawal(lmrId: string): Observable<WithdrawRejectionDto> {
+    return this.http.post<WithdrawRejectionDto>(
+      `${this.base}/admin/lmrs/${encodeURIComponent(lmrId)}/correct-withdrawal`,
+      {},
+    );
+  }
 }
