@@ -54,8 +54,9 @@ public class SecurityConfig {
                 // STATELESS session management has no session cookie for an attacker to exploit.
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .csrf(AbstractHttpConfigurer::disable) // lgtm[java/spring-disabled-csrf-protection]
-                // Only POST /api/admin/** requires the ADMIN role; everything else is open
+                // POST correct-withdrawal is open for prototype (any user can restore WITHDRAW_REJECTED to APPROVED)
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/admin/lmrs/*/correct-withdrawal").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )

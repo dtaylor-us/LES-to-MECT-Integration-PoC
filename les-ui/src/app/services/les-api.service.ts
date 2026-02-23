@@ -82,17 +82,12 @@ export class LesApiService {
   }
 
   /**
-   * Admin-only: restore a WITHDRAW_REJECTED enrollment to APPROVED.
-   * Credentials are supplied by the caller and are never stored in the environment or service.
-   * Note: btoa requires ASCII-safe credentials; admin passwords must not contain non-ASCII characters.
+   * Restore a WITHDRAW_REJECTED enrollment to APPROVED (prototype: no auth required).
    */
-  correctWithdrawal(lmrId: string, adminUsername: string, adminPassword: string): Observable<WithdrawRejectionDto> {
-    const token = btoa(`${adminUsername}:${adminPassword}`);
-    const headers = { Authorization: `Basic ${token}` };
+  correctWithdrawal(lmrId: string): Observable<WithdrawRejectionDto> {
     return this.http.post<WithdrawRejectionDto>(
       `${this.base}/admin/lmrs/${encodeURIComponent(lmrId)}/correct-withdrawal`,
       {},
-      { headers },
     );
   }
 }

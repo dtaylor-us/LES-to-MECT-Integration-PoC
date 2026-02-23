@@ -10,30 +10,14 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
   template: `
     <div class="app-container">
       <div class="page-head">
-        <h1>Withdrawal rejections (admin)</h1>
+        <h1>Withdrawal rejections</h1>
         <a routerLink="/enrollments" class="btn btn-secondary">Back to enrollments</a>
       </div>
 
       <p class="muted">
         Enrollments where the user requested withdrawal but MECT rejected (e.g. state changed in MECT after the button was shown).
-        Use <strong>Restore to Approved</strong> to reset the enrollment back to active (APPROVED) status so it remains valid.
+        Use <strong>Restore</strong> to reset the enrollment back to active (APPROVED) status so it remains valid.
       </p>
-
-      <!-- Admin credential form (credentials are never stored, only used for the single request) -->
-      <div class="card credentials-card">
-        <h2>Admin credentials</h2>
-        <p class="muted">Enter admin credentials to authorise state corrections. Credentials are sent only when you click Restore and are not stored.</p>
-        <div class="credentials-row">
-          <label>
-            Username
-            <input type="text" [(ngModel)]="adminUsername" autocomplete="username" class="input-field" placeholder="admin" />
-          </label>
-          <label>
-            Password
-            <input type="password" [(ngModel)]="adminPassword" autocomplete="current-password" class="input-field" placeholder="••••••••" />
-          </label>
-        </div>
-      </div>
 
       @if (actionError) {
         <div class="alert alert-error">{{ actionError }}</div>
@@ -79,8 +63,7 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
                     <button
                       class="btn btn-primary btn-sm"
                       (click)="correctWithdrawal(r.lmrId)"
-                      [disabled]="correcting === r.lmrId || !adminUsername || !adminPassword"
-                      [title]="!adminUsername || !adminPassword ? 'Enter admin credentials above first' : ''"
+                      [disabled]="correcting === r.lmrId"
                     >
                       {{ correcting === r.lmrId ? 'Restoring…' : 'Restore to Approved' }}
                     </button>
@@ -98,11 +81,6 @@ import { LesApiService, WithdrawRejectionDto } from '../services/les-api.service
     .page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 1rem; }
     .page-head h1 { margin: 0; }
     .muted { color: var(--miso-text-muted); margin-bottom: 1rem; font-size: 0.875rem; }
-    .credentials-card { margin-bottom: 1.5rem; }
-    .credentials-card h2 { margin-top: 0; }
-    .credentials-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-    .credentials-row label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.875rem; font-weight: 500; }
-    .input-field { padding: 0.375rem 0.625rem; border: 1px solid var(--miso-border); border-radius: 4px; font-size: 0.875rem; }
     .table-wrap { overflow-x: auto; }
     .miso-table {
       width: 100%;
@@ -130,8 +108,6 @@ export class WithdrawRejectionsComponent implements OnInit {
   correcting: string | null = null;
   actionError: string | null = null;
   actionSuccess: string | null = null;
-  adminUsername = '';
-  adminPassword = '';
 
   constructor(private api: LesApiService) {}
 
@@ -157,18 +133,14 @@ export class WithdrawRejectionsComponent implements OnInit {
     this.correcting = lmrId;
     this.actionError = null;
     this.actionSuccess = null;
-    this.api.correctWithdrawal(lmrId, this.adminUsername, this.adminPassword).subscribe({
+    this.api.correctWithdrawal(lmrId).subscribe({
       next: () => {
         this.correcting = null;
         this.actionSuccess = `Enrollment ${lmrId} has been restored to APPROVED.`;
-        this.adminUsername = '';
-        this.adminPassword = '';
         this.loadList();
       },
       error: (err) => {
         this.correcting = null;
-        this.adminUsername = '';
-        this.adminPassword = '';
         this.actionError = err?.error?.message || err?.message || 'Failed to correct enrollment state.';
       },
     });

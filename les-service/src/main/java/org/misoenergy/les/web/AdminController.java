@@ -52,11 +52,11 @@ public class AdminController {
 
     @PostMapping("/lmrs/{id}/correct-withdrawal")
     @Operation(
-            summary = "Correct enrollment state after a rejected withdrawal (admin only)",
+            summary = "Correct enrollment state after a rejected withdrawal",
             description = "Resets a WITHDRAW_REJECTED enrollment back to APPROVED so it remains active. "
                     + "Clears the rejection reason and timestamp. "
                     + "Only applies to enrollments currently in WITHDRAW_REJECTED status. "
-                    + "Requires ADMIN role (HTTP Basic Auth)."
+                    + "Prototype: open to any user (no auth required)."
     )
     public ResponseEntity<WithdrawRejectionDto> correctWithdrawal(@PathVariable("id") String lmrId) {
         LMREnrollment updated = enrollmentService.correctRejectedWithdrawal(lmrId);
